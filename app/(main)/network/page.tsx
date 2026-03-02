@@ -3,16 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-    ShareIcon,
     MagnifyingGlassIcon,
     AdjustmentsHorizontalIcon,
     ArrowPathIcon,
-    InformationCircleIcon,
     CubeIcon,
-    BeakerIcon,
-    ChartBarIcon
+    ChartBarIcon,
 } from '@heroicons/react/24/outline'
-import { mockNetworkData } from '../utils/mockNetworkData'
+import { getNetwork, getRankings } from '../services/epirankApi'
 import StatusBadge from '../components/rankings/StatusBadge'
 
 interface Node {
@@ -46,12 +43,34 @@ export default function NetworkPage() {
     const nodePositionsRef = useRef<Map<string, { x: number, y: number }>>(new Map())
 
     useEffect(() => {
-        // Load mock data
-        setTimeout(() => {
-            setNodes(mockNetworkData.nodes as Node[])
-            setLinks(mockNetworkData.links)
-            setIsLoading(false)
-        }, 1000)
+        const loadNetwork = async () => {
+            setIsLoading(true)
+            try {
+                const [networkResponse, rankings] = await Promise.all([
+                    getNetwork({ top_n: 20, region: 'STG' }),
+                    getRankings({ region: 'stg', limit: 50, status: 'all' }),
+                ])
+                const chromosomeLookup = new Map(
+                    rankings.map((item) => [item.gene, item.chromosome])
+                )
+
+                setNodes(
+                    networkResponse.nodes.map((node) => ({
+                        id: node.id,
+                        name: node.id,
+                        score: node.score,
+                        status: node.status,
+                        degree: node.degree,
+                        chromosome: chromosomeLookup.get(node.id) ?? '-',
+                    }))
+                )
+                setLinks(networkResponse.edges)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        loadNetwork()
     }, [])
 
     // Filter nodes based on search and status filter
@@ -399,7 +418,7 @@ export default function NetworkPage() {
                             {['all', 'known', 'novel'].map((f) => (
                                 <button
                                     key={f}
-                                    onClick={() => setFilter(f as any)}
+                                    onClick={() => setFilter(f as 'all' | 'known' | 'novel')}
                                     className={`px-3 py-1 rounded-full text-xs capitalize transition-colors ${filter === f
                                         ? f === 'known'
                                             ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'

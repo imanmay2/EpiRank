@@ -24,7 +24,6 @@ type SortDirection = 'asc' | 'desc'
 const RankTable: React.FC<RankTableProps> = ({ data, isLoading, onGeneClick }) => {
     const [sortField, setSortField] = useState<SortField>('rank')
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-    const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -53,6 +52,12 @@ const RankTable: React.FC<RankTableProps> = ({ data, isLoading, onGeneClick }) =
                 return 0
         }
     })
+
+    const getRowId = (gene: Gene) => {
+        const geneWithRegion = gene as Gene & { region?: string }
+        const region = geneWithRegion.region ?? 'NA'
+        return `${gene.gene}-${region}-${gene.chromosome}-${gene.rank}`
+    }
 
     type Column =
         { field: SortField; label: string; width: string }
@@ -116,12 +121,10 @@ const RankTable: React.FC<RankTableProps> = ({ data, isLoading, onGeneClick }) =
                 <tbody>
                     {sortedData.map((gene, index) => (
                         <motion.tr
-                            key={gene.gene}
+                            key={getRowId(gene)}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.03 }}
-                            onHoverStart={() => setHoveredRow(gene.gene)}
-                            onHoverEnd={() => setHoveredRow(null)}
                             onClick={() => onGeneClick(gene)}
                             className="group relative cursor-pointer border-b border-white/5 hover:border-white/20 transition-colors"
                         >

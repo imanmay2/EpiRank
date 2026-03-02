@@ -3,13 +3,13 @@
 import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import {
-    ArrowPathIcon,
-    InformationCircleIcon,
     ChartBarIcon,
     BeakerIcon,
     ShareIcon,
-    DocumentTextIcon
+    DocumentTextIcon,
+    InformationCircleIcon,
 } from '@heroicons/react/24/outline'
+import { getExplain } from '../../services/epirankApi'
 
 interface ShapChartProps {
     geneId: string
@@ -22,24 +22,12 @@ interface ShapFeature {
     category: 'methylation' | 'histone' | 'network' | 'chromatin'
 }
 
-// Mock data - replace with actual API call
-const mockShapData: Record<string, ShapFeature[]> = {
-    'APOE': [
-        { name: 'Methylation Delta (cg14123992)', value: 0.45, shap_value: 0.32, category: 'methylation' },
-        { name: 'Histone H3K4me3', value: 0.92, shap_value: 0.28, category: 'histone' },
-        { name: 'Network Degree', value: 156, shap_value: 0.21, category: 'network' },
-        { name: 'Chromatin Accessibility', value: 0.78, shap_value: 0.15, category: 'chromatin' },
-        { name: 'Histone H3K27ac', value: 0.87, shap_value: 0.12, category: 'histone' },
-        { name: 'Methylation Delta (cg04567890)', value: -0.23, shap_value: -0.08, category: 'methylation' },
-        { name: 'Histone H3K9me3', value: 0.12, shap_value: -0.05, category: 'histone' },
-        { name: 'Methylation Delta (cg12345678)', value: 0.15, shap_value: 0.04, category: 'methylation' },
-    ],
-    'BIN1': [
-        { name: 'Network Degree', value: 89, shap_value: 0.35, category: 'network' },
-        { name: 'Histone H3K27ac', value: 0.91, shap_value: 0.24, category: 'histone' },
-        { name: 'Chromatin Accessibility', value: 0.82, shap_value: 0.18, category: 'chromatin' },
-        { name: 'Methylation Delta (cg23984723)', value: 0.32, shap_value: 0.12, category: 'methylation' },
-    ]
+const parseCategory = (featureName: string): ShapFeature['category'] => {
+    const key = featureName.toLowerCase()
+    if (key.includes('network')) return 'network'
+    if (key.includes('methylation') || key.includes('beta')) return 'methylation'
+    if (key.includes('h3k')) return 'histone'
+    return 'chromatin'
 }
 
 const categoryConfig = {
@@ -90,10 +78,18 @@ const ShapChart: React.FC<ShapChartProps> = ({ geneId }) => {
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true)
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            setData(mockShapData[geneId] || mockShapData['APOE'])
-            setIsLoading(false)
+            try {
+                const explain = await getExplain(geneId)
+                const mappedData = Object.entries(explain.shap_values).map(([name, shapValue]) => ({
+                    name,
+                    value: Math.abs(shapValue),
+                    shap_value: shapValue,
+                    category: parseCategory(name),
+                }))
+                setData(mappedData)
+            } finally {
+                setIsLoading(false)
+            }
         }
         fetchData()
     }, [geneId])
@@ -340,7 +336,7 @@ const ShapChart: React.FC<ShapChartProps> = ({ geneId }) => {
                                     {geneId} shows strong {topPositive[0]?.category} signals ({topPositive[0]?.name})
                                     contributing positively to its score. The {topNegative[0]?.category} pattern
                                     ({topNegative[0]?.name}) slightly reduces the ranking. Overall, regulatory evidence
-                                    strongly supports {geneId}'s role in Alzheimer's pathology.
+                                    strongly supports {geneId}&apos;s role in Alzheimer&apos;s pathology.
                                 </p>
                             </div>
                         </div>
